@@ -19,6 +19,8 @@
 		7032250018CF994800AB6C0E /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 703224E818CF994800AB6C0E /* UIKit.framework */; };
 		7032250818CF994800AB6C0E /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 7032250618CF994800AB6C0E /* InfoPlist.strings */; };
 		7032250A18CF994800AB6C0E /* snapcatTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 7032250918CF994800AB6C0E /* snapcatTests.m */; };
+		7032251518CF9A0100AB6C0E /* CatCornViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 7032251418CF9A0100AB6C0E /* CatCornViewController.m */; };
+		7032251818CFA29200AB6C0E /* Unicorn.png in Resources */ = {isa = PBXBuildFile; fileRef = 7032251718CFA29200AB6C0E /* Unicorn.png */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -48,6 +50,9 @@
 		7032250518CF994800AB6C0E /* snapcatTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "snapcatTests-Info.plist"; sourceTree = "<group>"; };
 		7032250718CF994800AB6C0E /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		7032250918CF994800AB6C0E /* snapcatTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = snapcatTests.m; sourceTree = "<group>"; };
+		7032251318CF9A0100AB6C0E /* CatCornViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CatCornViewController.h; sourceTree = "<group>"; };
+		7032251418CF9A0100AB6C0E /* CatCornViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = CatCornViewController.m; sourceTree = "<group>"; };
+		7032251718CFA29200AB6C0E /* Unicorn.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Unicorn.png; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -108,8 +113,11 @@
 			isa = PBXGroup;
 			children = (
 				703224F318CF994800AB6C0E /* CatAppDelegate.h */,
+				7032251318CF9A0100AB6C0E /* CatCornViewController.h */,
+				7032251418CF9A0100AB6C0E /* CatCornViewController.m */,
 				703224F418CF994800AB6C0E /* CatAppDelegate.m */,
 				703224F618CF994800AB6C0E /* Images.xcassets */,
+				7032251618CFA27E00AB6C0E /* Resources */,
 				703224EB18CF994800AB6C0E /* Supporting Files */,
 			);
 			path = snapcat;
@@ -142,6 +150,14 @@
 				7032250618CF994800AB6C0E /* InfoPlist.strings */,
 			);
 			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+		7032251618CFA27E00AB6C0E /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				7032251718CFA29200AB6C0E /* Unicorn.png */,
+			);
+			name = Resources;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -220,6 +236,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7032251818CFA29200AB6C0E /* Unicorn.png in Resources */,
 				703224EF18CF994800AB6C0E /* InfoPlist.strings in Resources */,
 				703224F718CF994800AB6C0E /* Images.xcassets in Resources */,
 			);
@@ -240,6 +257,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7032251518CF9A0100AB6C0E /* CatCornViewController.m in Sources */,
 				703224F118CF994800AB6C0E /* main.m in Sources */,
 				703224F518CF994800AB6C0E /* CatAppDelegate.m in Sources */,
 			);
@@ -363,7 +381,9 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "snapcat/snapcat-Prefix.pch";
 				INFOPLIST_FILE = "snapcat/snapcat-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = "1,2";
 				WRAPPER_EXTENSION = app;
 			};
 			name = Debug;
@@ -376,7 +396,9 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "snapcat/snapcat-Prefix.pch";
 				INFOPLIST_FILE = "snapcat/snapcat-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = "1,2";
 				WRAPPER_EXTENSION = app;
 			};
 			name = Release;
@@ -442,6 +464,7 @@
 				7032250F18CF994800AB6C0E /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		7032251018CF994800AB6C0E /* Build configuration list for PBXNativeTarget "snapcatTests" */ = {
 			isa = XCConfigurationList;
@@ -450,6 +473,7 @@
 				7032251218CF994800AB6C0E /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
