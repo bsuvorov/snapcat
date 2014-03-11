@@ -1,0 +1,12 @@
+PODS:
+  - box-ios-sdk-v2 (1.2.2):
+    - box-ios-sdk-v2/no-arc
+  - box-ios-sdk-v2/no-arc (1.2.2)
+
+DEPENDENCIES:
+  - box-ios-sdk-v2 (~> 1.2)
+
+SPEC CHECKSUMS:
+  box-ios-sdk-v2: c3478ad6751446afdae6e84b542a3e5de35a60c7
+
+COCOAPODS: 0.29.0
