@@ -99,7 +99,11 @@ typedef NS_ENUM(NSInteger, CatCornViewControllerState) {
     self.unicornImageView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"Unicorn"]];
     self.unicornImageView.contentMode = UIViewContentModeScaleToFill;
     self.unicornImageView.hidden = YES;
-    self.unicornImageView.frame = CGRectMake(0, 0, 80, 128);
+    if([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPhone) {
+        self.unicornImageView.frame = CGRectMake(0, 0, 40, 64);
+    } else {
+        self.unicornImageView.frame = CGRectMake(0, 0, 80, 128);        
+    }
         
     self.catImageView = [[UIImageView alloc] init];
     self.catImageView.backgroundColor = [UIColor clearColor];
