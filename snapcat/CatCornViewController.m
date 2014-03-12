@@ -19,7 +19,9 @@
 @property (nonatomic, strong) UIImagePickerController *imagePicker;
 @property (nonatomic, strong) UIBarButtonItem *btnSaveBackToPhotoLibrary;
 @property (nonatomic, strong) UIBarButtonItem *btnPickFromBox;
-@property (nonatomic, strong) BoxFolderPickerViewController *folderPicker;
+@property (nonatomic, strong) BoxFolderPickerViewController *photoPicker;
+@property (nonatomic, strong) BoxFolderPickerViewController *destinationChooser;
+
 @end
 
 @implementation CatCornViewController
@@ -93,19 +95,34 @@
 
 }
 
-- (BoxFolderPickerViewController *)folderPicker
+- (BoxFolderPickerViewController *)destinationChooser
 {
-    if (_folderPicker == nil) {
+    if (_destinationChooser == nil) {
         NSFileManager *fm = [NSFileManager defaultManager];
         NSURL *cachesDirectory = [[fm URLsForDirectory:NSCachesDirectory inDomains:NSUserDomainMask] lastObject];
-        _folderPicker = [[BoxSDK sharedSDK] folderPickerWithRootFolderID:@"0"
+        _destinationChooser = [[BoxSDK sharedSDK] folderPickerWithRootFolderID:@"0"
+                                                      thumbnailsEnabled:YES
+                                                   cachedThumbnailsPath:[cachesDirectory absoluteString]
+                                                   fileSelectionEnabled:NO];
+        _destinationChooser.delegate = self;
+    }
+    
+    return _destinationChooser;
+}
+
+- (BoxFolderPickerViewController *)photoPicker
+{
+    if (_photoPicker == nil) {
+        NSFileManager *fm = [NSFileManager defaultManager];
+        NSURL *cachesDirectory = [[fm URLsForDirectory:NSCachesDirectory inDomains:NSUserDomainMask] lastObject];
+        _photoPicker = [[BoxSDK sharedSDK] folderPickerWithRootFolderID:@"0"
                                                        thumbnailsEnabled:YES
                                                     cachedThumbnailsPath:[cachesDirectory absoluteString]
                                                     fileSelectionEnabled:YES];
-        _folderPicker.delegate = self;
+        _photoPicker.delegate = self;
     }
     
-    return _folderPicker;
+    return _photoPicker;
 }
 
 - (void)viewDidLayoutSubviews
@@ -144,18 +161,18 @@
 }
 
 
-
-
 - (void)btnPickFromBoxSelected:(id)sender
 {
-    UINavigationController *controller = [[BoxFolderPickerNavigationController alloc] initWithRootViewController:self.folderPicker];
+    UINavigationController *controller = [[BoxFolderPickerNavigationController alloc] initWithRootViewController:self.photoPicker];
     controller.modalPresentationStyle = UIModalPresentationFormSheet;
-
     [self presentViewController:controller animated:YES completion:nil];
 }
 
 - (void)btnSaveBackToBoxSelected:(id)sender
 {
+    UINavigationController *controller = [[BoxFolderPickerNavigationController alloc] initWithRootViewController:self.destinationChooser];
+    controller.modalPresentationStyle = UIModalPresentationFormSheet;
+    [self presentViewController:controller animated:YES completion:nil];
 }
 
 #pragma mark helpers
@@ -198,26 +215,32 @@
 #pragma mark BoxFolderPickerDelegate
 - (void)folderPickerController:(BoxFolderPickerViewController *)controller didSelectBoxItem:(BoxItem *)item
 {
-    [self dismissViewControllerAnimated:YES completion:nil];    
-    if ([item isKindOfClass:[BoxFile class]]) {
-        BoxFilesResourceManager *filesRM = [[BoxSDK sharedSDK] filesManager];
-        BoxFile *file = (BoxFile *)item;
-
-        NSString *filePath = [NSTemporaryDirectory() stringByAppendingPathComponent:file.SHA1];
+    if (controller == self.photoPicker) {
+        [self dismissViewControllerAnimated:YES completion:nil];    
+        if ([item isKindOfClass:[BoxFile class]]) {
+            BoxFilesResourceManager *filesRM = [[BoxSDK sharedSDK] filesManager];
+            BoxFile *file = (BoxFile *)item;
+            
+            NSString *filePath = [NSTemporaryDirectory() stringByAppendingPathComponent:file.SHA1];
+            
+            NSOutputStream *outputStream = [[NSOutputStream alloc] initToFileAtPath:filePath append:NO];
+            [filesRM downloadFileWithID:item.modelID
+                           outputStream:outputStream
+                         requestBuilder:nil
+                                success:^(NSString *fileID, long long expectedTotalBytes) {
+                                    dispatch_async(dispatch_get_main_queue(), ^{
+                                        NSLog(@"Finished downloading file with ID = %@", fileID);
+                                        UIImage *image = [UIImage imageWithContentsOfFile:filePath];
+                                        self.catImageView.image = image;
+                                    });
+                                } failure:^(NSURLRequest *request, NSHTTPURLResponse *response, NSError *error) {
+                                    NSLog(@"Failed to download file with response = %@, error= %@", response, error);
+                                }];
+        }
+    } else if (controller == self.destinationChooser) {
         
-        NSOutputStream *outputStream = [[NSOutputStream alloc] initToFileAtPath:filePath append:NO];
-        [filesRM downloadFileWithID:item.modelID
-                       outputStream:outputStream
-                     requestBuilder:nil
-                            success:^(NSString *fileID, long long expectedTotalBytes) {
-                                dispatch_async(dispatch_get_main_queue(), ^{
-                                    NSLog(@"Finished downloading file with ID = %@", fileID);
-                                    UIImage *image = [UIImage imageWithContentsOfFile:filePath];
-                                    self.catImageView.image = image;
-                                });
-        } failure:^(NSURLRequest *request, NSHTTPURLResponse *response, NSError *error) {
-            NSLog(@"Failed to download file with response = %@, error= %@", response, error);
-        }];
+    } else {
+        NSLog(@"Unexpected BoxFolderPickerViewController controller %@", controller);
     }
 }
 

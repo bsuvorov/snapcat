@@ -8,6 +8,7 @@
 
 #import "CatAppDelegate.h"
 #import "CatCornViewController.h"
+#import "BOXAccountService.h"
 
 @implementation CatAppDelegate
 
@@ -16,6 +17,7 @@
     self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
     // Override point for customization after application launch.
     self.window.backgroundColor = [UIColor whiteColor];
+    [[BOXAccountService sharedInstance] startService];
     self.window.rootViewController = [[CatCornViewController alloc] init];
     [self.window makeKeyAndVisible];
     return YES;
