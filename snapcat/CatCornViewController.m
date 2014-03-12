@@ -12,6 +12,15 @@
 #import "BOXAccountService.h"
 #import <BoxSDK/BoxFolderPickerViewController.h>
 
+typedef NS_ENUM(NSInteger, CatCornViewControllerState) {
+    CatCornViewControllerStateUndefined,
+    CatCornViewControllerStateLocalSave,
+    CatCornViewControllerStateBoxSave,
+    CatCornViewControllerStateLocalPicker,
+    CatCornViewControllerStateBoxPicker,    
+};
+ 
+
 @interface CatCornViewController () <UINavigationControllerDelegate, UIImagePickerControllerDelegate, BoxFolderPickerDelegate>
 @property (nonatomic, strong) UIImageView *catImageView;
 @property (nonatomic, strong) UIImageView *unicornImageView;
@@ -22,7 +31,7 @@
 @property (nonatomic, strong) UIBarButtonItem *btnPickFromBox;
 @property (nonatomic, strong) BoxFolderPickerViewController *photoPicker;
 @property (nonatomic, strong) BoxFolderPickerViewController *destinationChooser;
-
+@property (nonatomic, assign) CatCornViewControllerState state;
 @end
 
 @implementation CatCornViewController
@@ -30,7 +39,7 @@
 {
     self = [super init];
     if (self) {
-
+        self.state = CatCornViewControllerStateUndefined;
     }
     
     return self;
@@ -39,7 +48,7 @@
 - (void)viewDidLoad
 {
     [super viewDidLoad];
-    
+        
     UIBarButtonItem *btnCameraRoll = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCamera
                                                                                    target:self
                                                                                    action:@selector(btnCameraRollSelected:)];    
@@ -148,6 +157,7 @@
     [picker dismissViewControllerAnimated:YES completion:^{
         UIImage *originalImage = (UIImage *) [info objectForKey:UIImagePickerControllerOriginalImage];
         self.catImageView.image = originalImage;
+        self.state = CatCornViewControllerStateUndefined;
     }];
 }
 
@@ -155,6 +165,7 @@
 {
     [picker dismissViewControllerAnimated:YES completion:^{
         NSLog(@"Cancelled");
+        self.state = CatCornViewControllerStateUndefined;
     }];
 }
 
@@ -174,6 +185,7 @@
 
 - (void)btnPickFromBoxSelected:(id)sender
 {
+    self.state = CatCornViewControllerStateBoxPicker;
     UINavigationController *controller = [[BoxFolderPickerNavigationController alloc] initWithRootViewController:self.photoPicker];
     controller.modalPresentationStyle = UIModalPresentationFormSheet;
     [self presentViewController:controller animated:YES completion:nil];
@@ -181,6 +193,7 @@
 
 - (void)btnSaveBackToBoxSelected:(id)sender
 {
+    self.state = CatCornViewControllerStateBoxSave;
     self.btnSaveBackToBox.enabled = NO;
     UINavigationController *controller = [[BoxFolderPickerNavigationController alloc] initWithRootViewController:self.destinationChooser];
     controller.modalPresentationStyle = UIModalPresentationFormSheet;
@@ -190,26 +203,29 @@
 #pragma mark helpers
 - (void)btnCameraRollSelected:(id)sender
 {
+    self.state = CatCornViewControllerStateLocalPicker;    
     [self presentViewController:self.imagePicker animated:YES completion:nil];
 }
 
 - (void)btnSaveSelected:(id)sender
 {
+    self.state = CatCornViewControllerStateLocalSave;
     self.btnSaveBackToPhotoLibrary.enabled = NO;
-    [self saveImageToCameRoll:[self renderCatCornImage]];
+    UIImage *image = [self renderCatCornImage];
+    ALAssetsLibrary *lib = [[ALAssetsLibrary alloc] init];
+    [lib writeImageToSavedPhotosAlbum:[image CGImage] metadata:nil completionBlock:^(NSURL *assetURL, NSError *error) {
+        if(error) {
+            NSLog(@"Failed to save image %@ to photo album", image);
+            self.state = CatCornViewControllerStateUndefined;
+        }
+    }];
+    
 }
-
 
 #pragma mark button handler
 
 - (void)saveImageToCameRoll:(UIImage *)image
 {
-    ALAssetsLibrary *lib = [[ALAssetsLibrary alloc] init];
-    [lib writeImageToSavedPhotosAlbum:[image CGImage] metadata:nil completionBlock:^(NSURL *assetURL, NSError *error) {
-        if(error) {
-            NSLog(@"Failed to save image %@ to photo album", image);
-        }
-    }];
 }
 
 - (UIImage *)renderCatCornImage
@@ -224,12 +240,11 @@
     return bitmapImage;
 }
 
-
 #pragma mark BoxFolderPickerDelegate
 - (void)folderPickerController:(BoxFolderPickerViewController *)controller didSelectBoxItem:(BoxItem *)item
 {
     [self dismissViewControllerAnimated:YES completion:nil];    
-    if (controller == self.photoPicker) {
+    if (self.state == CatCornViewControllerStateBoxPicker) {
 
         if ([item isKindOfClass:[BoxFile class]]) {
             BoxFilesResourceManager *filesRM = [[BoxSDK sharedSDK] filesManager];
@@ -248,11 +263,12 @@
                                     });
                                 } failure:^(NSURLRequest *request, NSHTTPURLResponse *response, NSError *error) {
                                     dispatch_async(dispatch_get_main_queue(), ^{
-                                        NSLog(@"Failed to download file with response = %@, error= %@", response, error);                                        
+                                        NSLog(@"Failed to download file with response = %@, error= %@", response, error);
+                                        self.state = CatCornViewControllerStateUndefined;
                                     });
                                 }];
         }
-    } else if (controller == self.destinationChooser) {
+    } else  if (self.state == CatCornViewControllerStateBoxSave){
         if ([item isKindOfClass:[BoxFolder class]]) {
             BoxFilesResourceManager *filesRM = [[BoxSDK sharedSDK] filesManager];
             BoxFolder *folder = (BoxFolder *)item;
@@ -267,12 +283,14 @@
                                     dispatch_async(dispatch_get_main_queue(), ^{
                                         self.btnSaveBackToBox.enabled = YES;  
                                         NSLog(@"Succeeded uploading cat corn to Box. File ID %@", file.modelID);
+                                        self.state = CatCornViewControllerStateUndefined;
                                     });   
                                 }
                                 failure:^(NSURLRequest *request, NSHTTPURLResponse *response, NSError *error, NSDictionary *JSONDictionary) {
                                     dispatch_async(dispatch_get_main_queue(), ^{
                                         self.btnSaveBackToBox.enabled = YES; 
-                                        NSLog(@"Failed to upload file with response = %@, error= %@", response, error);                                        
+                                        NSLog(@"Failed to upload file with response = %@, error= %@", response, error);
+                                        self.state = CatCornViewControllerStateUndefined;
                                     });
                                 }];
         }
@@ -284,6 +302,7 @@
 - (void)folderPickerControllerDidCancel:(BoxFolderPickerViewController *)controller
 {
     [self dismissViewControllerAnimated:YES completion:nil];
+    self.state = CatCornViewControllerStateUndefined;
 }
 
 
