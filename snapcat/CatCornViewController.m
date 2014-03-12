@@ -25,13 +25,19 @@ typedef NS_ENUM(NSInteger, CatCornViewControllerState) {
 @property (nonatomic, strong) UIImageView *catImageView;
 @property (nonatomic, strong) UIImageView *unicornImageView;
 @property (nonatomic, strong) UIToolbar *toolbar;
-@property (nonatomic, strong) UIImagePickerController *imagePicker;
 @property (nonatomic, strong) UIBarButtonItem *btnSaveBackToPhotoLibrary;
 @property (nonatomic, strong) UIBarButtonItem *btnSaveBackToBox;
 @property (nonatomic, strong) UIBarButtonItem *btnPickFromBox;
+@property (nonatomic, strong) UIImagePickerController *imagePicker;
+@property (nonatomic, strong) UIActivityIndicatorView *activitySpinner;
+
 @property (nonatomic, strong) BoxFolderPickerViewController *photoPicker;
 @property (nonatomic, strong) BoxFolderPickerViewController *destinationChooser;
 @property (nonatomic, assign) CatCornViewControllerState state;
+
+@property (nonatomic, strong) BoxFile *boxFile;
+@property (nonatomic, strong) BoxFilesResourceManager *filesRM;
+
 @end
 
 @implementation CatCornViewController
@@ -45,24 +51,22 @@ typedef NS_ENUM(NSInteger, CatCornViewControllerState) {
     return self;
 }
 
-- (void)viewDidLoad
+- (void)setupToolbar
 {
-    [super viewDidLoad];
-        
     UIBarButtonItem *btnCameraRoll = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCamera
                                                                                    target:self
                                                                                    action:@selector(btnCameraRollSelected:)];    
     btnCameraRoll.style = UIBarButtonItemStyleBordered;
     btnCameraRoll.tintColor = [UIColor blackColor];
-
+    
     self.btnSaveBackToPhotoLibrary = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemSave
-                                                                     target:self
-                                                                     action:@selector(btnSaveSelected:)];
-
+                                                                                   target:self
+                                                                                   action:@selector(btnSaveSelected:)];
+    
     self.btnSaveBackToPhotoLibrary.style = UIBarButtonItemStyleBordered;
     self.btnSaveBackToPhotoLibrary.tintColor = [UIColor blackColor];
     self.btnSaveBackToPhotoLibrary.enabled = NO;
-
+    
     self.btnSaveBackToBox = [[UIBarButtonItem alloc] initWithTitle:@"Save back to Box"
                                                              style:UIBarButtonItemStyleBordered
                                                             target:self
@@ -81,37 +85,69 @@ typedef NS_ENUM(NSInteger, CatCornViewControllerState) {
                                       initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace 
                                       target:nil 
                                       action:nil];
+    NSMutableArray *toolbarItems = [[NSMutableArray alloc] initWithObjects:btnCameraRoll, self.btnPickFromBox, flexibleSpace, self.btnSaveBackToBox, self.btnSaveBackToPhotoLibrary, nil];
     
+    self.toolbar = [[UIToolbar alloc] init];
+    self.toolbar.tintColor = [UIColor whiteColor];
+    [self.toolbar setItems:toolbarItems];
+
+    [self.view addSubview:self.toolbar];
+}
+
+- (void)setupImageViews
+{
     self.unicornImageView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"Unicorn"]];
     self.unicornImageView.contentMode = UIViewContentModeScaleToFill;
     self.unicornImageView.hidden = YES;
     self.unicornImageView.frame = CGRectMake(0, 0, 80, 128);
-    
-    
+        
     self.catImageView = [[UIImageView alloc] init];
-    self.catImageView.backgroundColor = [UIColor blueColor];
+    self.catImageView.backgroundColor = [UIColor clearColor];
     self.catImageView.contentMode = UIViewContentModeScaleAspectFit;
-
-    self.imagePicker = [[UIImagePickerController alloc] init];
-    self.imagePicker.delegate = self;
-    
-    NSMutableArray *toolbarItems = [[NSMutableArray alloc] initWithObjects:btnCameraRoll, self.btnPickFromBox, flexibleSpace, self.btnSaveBackToBox, self.btnSaveBackToPhotoLibrary, nil];
-
-    self.toolbar = [[UIToolbar alloc] init];
-    self.toolbar.tintColor = [UIColor whiteColor];
-    [self.toolbar setItems:toolbarItems];
-    
-    
-    [self.view addSubview:self.catImageView];
-    [self.view addSubview:self.toolbar];
-    [self.view addSubview:self.unicornImageView];
-    
     UITapGestureRecognizer *doubleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(doubleTapHandler:)];
     doubleTap.numberOfTapsRequired = 1;
     self.catImageView.userInteractionEnabled = YES;
     [self.catImageView addGestureRecognizer:doubleTap];
-    
 
+    [self.view addSubview:self.catImageView];    
+    [self.view addSubview:self.unicornImageView];
+}
+
+- (void)setupImagePicker
+{
+    self.imagePicker = [[UIImagePickerController alloc] init];
+    self.imagePicker.delegate = self;    
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    self.view.backgroundColor = [UIColor blackColor];
+    
+    [self setupToolbar];
+    [self setupImageViews];
+    [self setupImagePicker];
+
+    self.activitySpinner = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleWhiteLarge];
+    [self.view addSubview:self.activitySpinner];
+}
+
+- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)toInterfaceOrientation
+{
+    return (toInterfaceOrientation != UIInterfaceOrientationPortraitUpsideDown);
+}
+
+- (NSUInteger)supportedInterfaceOrientations
+{
+    return UIInterfaceOrientationMaskAll;
+}
+
+- (BoxFilesResourceManager *)filesRM
+{
+    if (_filesRM == nil) {
+        _filesRM = [[BoxSDK sharedSDK] filesManager];
+    }
+    return _filesRM;
 }
 
 - (BoxFolderPickerViewController *)destinationChooser
@@ -148,6 +184,11 @@ typedef NS_ENUM(NSInteger, CatCornViewControllerState) {
 {
     self.catImageView.frame = CGRectMake(0, 0, self.view.bounds.size.width, self.view.bounds.size.height - 44);
     self.toolbar.frame = CGRectMake(0, self.view.bounds.size.height - 44, self.view.bounds.size.width, 44);
+
+    CGRect rect = self.view.bounds;
+    // The activity indicator frame is going to be our start point to start drawing whatever the frame size is.
+    self.activitySpinner.center = CGPointMake(floor(rect.size.width * 0.5f), floor(rect.size.height * 0.5f));
+
 }
 
 
@@ -223,9 +264,10 @@ typedef NS_ENUM(NSInteger, CatCornViewControllerState) {
 }
 
 #pragma mark button handler
-
-- (void)saveImageToCameRoll:(UIImage *)image
-{
+- (NSData *)renderCarCornImageData
+{   
+    UIImage *image = [self renderCatCornImage];
+    return UIImageJPEGRepresentation(image, 1);
 }
 
 - (UIImage *)renderCatCornImage
@@ -240,62 +282,82 @@ typedef NS_ENUM(NSInteger, CatCornViewControllerState) {
     return bitmapImage;
 }
 
+- (void)updateCatCornCanvasWithBoxFile:(BoxFile *)file
+{
+    [self.activitySpinner startAnimating];
+    
+    NSString *filePath = [NSTemporaryDirectory() stringByAppendingPathComponent:file.SHA1];
+    NSOutputStream *outputStream = [[NSOutputStream alloc] initToFileAtPath:filePath append:NO];
+
+    [self.filesRM downloadFileWithID:file.modelID
+                        outputStream:outputStream
+                      requestBuilder:nil
+                             success:^(NSString *fileID, long long expectedTotalBytes) {
+                                 dispatch_async(dispatch_get_main_queue(), ^{
+                                     self.catImageView.image = [UIImage imageWithContentsOfFile:filePath];
+                                     self.state = CatCornViewControllerStateUndefined;
+                                     [self.activitySpinner stopAnimating];
+                                 });
+                             } failure:^(NSURLRequest *request, NSHTTPURLResponse *response, NSError *error) {
+                                 dispatch_async(dispatch_get_main_queue(), ^{
+                                     self.state = CatCornViewControllerStateUndefined;
+                                     [self.activitySpinner stopAnimating];
+                                 });
+                             }];    
+}
+
+- (void)uploadCatCornImageToBoxFolder:(BoxFolder *)folder withName:(NSString *)name
+{
+    [self.activitySpinner startAnimating];
+    
+    NSData *uploadData = [self renderCarCornImageData];
+    
+    BoxFilesRequestBuilder *requestBuilder = [[BoxFilesRequestBuilder alloc] init];
+    requestBuilder.parentID = folder.modelID;
+    requestBuilder.name = name;
+
+    [self.filesRM uploadFileWithData:uploadData
+                      requestBuilder:requestBuilder
+                             success:^(BoxFile *file) {
+                                 dispatch_async(dispatch_get_main_queue(), ^{
+                                     self.btnSaveBackToBox.enabled = YES;  
+                                     self.state = CatCornViewControllerStateUndefined;
+                                     [self.activitySpinner stopAnimating];
+                                 });   
+                             }
+                             failure:^(NSURLRequest *request, NSHTTPURLResponse *response, NSError *error, NSDictionary *JSONDictionary) {
+                                 dispatch_async(dispatch_get_main_queue(), ^{
+                                     self.btnSaveBackToBox.enabled = YES; 
+                                     self.state = CatCornViewControllerStateUndefined;
+                                     [self.activitySpinner stopAnimating];
+                                 });
+                             }];
+
+}
+
 #pragma mark BoxFolderPickerDelegate
 - (void)folderPickerController:(BoxFolderPickerViewController *)controller didSelectBoxItem:(BoxItem *)item
 {
     [self dismissViewControllerAnimated:YES completion:nil];    
     if (self.state == CatCornViewControllerStateBoxPicker) {
-
         if ([item isKindOfClass:[BoxFile class]]) {
-            BoxFilesResourceManager *filesRM = [[BoxSDK sharedSDK] filesManager];
-            BoxFile *file = (BoxFile *)item;
-            NSString *filePath = [NSTemporaryDirectory() stringByAppendingPathComponent:file.SHA1];
+            self.boxFile = (BoxFile*) item;
+            [self updateCatCornCanvasWithBoxFile:self.boxFile];
 
-            NSOutputStream *outputStream = [[NSOutputStream alloc] initToFileAtPath:filePath append:NO];
-            [filesRM downloadFileWithID:item.modelID
-                           outputStream:outputStream
-                         requestBuilder:nil
-                                success:^(NSString *fileID, long long expectedTotalBytes) {
-                                    dispatch_async(dispatch_get_main_queue(), ^{
-                                        NSLog(@"Finished downloading file with ID = %@", fileID);
-                                        UIImage *image = [UIImage imageWithContentsOfFile:filePath];
-                                        self.catImageView.image = image;
-                                    });
-                                } failure:^(NSURLRequest *request, NSHTTPURLResponse *response, NSError *error) {
-                                    dispatch_async(dispatch_get_main_queue(), ^{
-                                        NSLog(@"Failed to download file with response = %@, error= %@", response, error);
-                                        self.state = CatCornViewControllerStateUndefined;
-                                    });
-                                }];
         }
     } else  if (self.state == CatCornViewControllerStateBoxSave){
-        if ([item isKindOfClass:[BoxFolder class]]) {
-            BoxFilesResourceManager *filesRM = [[BoxSDK sharedSDK] filesManager];
-            BoxFolder *folder = (BoxFolder *)item;
-            UIImage *image = [self renderCatCornImage];
-            NSData *imageData = UIImageJPEGRepresentation(image, 1);
-            BoxItemsRequestBuilder *requestBuilder = [[BoxItemsRequestBuilder alloc] init];
-            requestBuilder.parentID = folder.modelID;
-            requestBuilder.name = @"Catcorn image";
-            [filesRM uploadFileWithData:imageData
-                         requestBuilder:nil
-                                success:^(BoxFile *file) {
-                                    dispatch_async(dispatch_get_main_queue(), ^{
-                                        self.btnSaveBackToBox.enabled = YES;  
-                                        NSLog(@"Succeeded uploading cat corn to Box. File ID %@", file.modelID);
-                                        self.state = CatCornViewControllerStateUndefined;
-                                    });   
-                                }
-                                failure:^(NSURLRequest *request, NSHTTPURLResponse *response, NSError *error, NSDictionary *JSONDictionary) {
-                                    dispatch_async(dispatch_get_main_queue(), ^{
-                                        self.btnSaveBackToBox.enabled = YES; 
-                                        NSLog(@"Failed to upload file with response = %@, error= %@", response, error);
-                                        self.state = CatCornViewControllerStateUndefined;
-                                    });
-                                }];
+        if ([item isKindOfClass:[BoxFolder class]]) {     
+            NSString *fileName = [[self.boxFile.name stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"_Unicorn.jpg"];
+
+            // happens when user started not from box, but from local library
+            if (fileName == nil) {
+                fileName = @"Unnamed+Unicorn.jpg";
+            }
+            
+            [self uploadCatCornImageToBoxFolder:(BoxFolder *)item withName:fileName];
         }
     } else {
-        NSLog(@"Unexpected BoxFolderPickerViewController controller %@", controller);
+        NSLog(@"Unexpected state %d", self.state);
     }
 }
 
@@ -303,7 +365,9 @@ typedef NS_ENUM(NSInteger, CatCornViewControllerState) {
 {
     [self dismissViewControllerAnimated:YES completion:nil];
     self.state = CatCornViewControllerStateUndefined;
+    if (self.catImageView.image != nil) {
+        self.btnSaveBackToBox.enabled = YES;
+    }
 }
-
 
 @end
