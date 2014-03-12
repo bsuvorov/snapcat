@@ -22,7 +22,7 @@
 		7032251518CF9A0100AB6C0E /* CatCornViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 7032251418CF9A0100AB6C0E /* CatCornViewController.m */; };
 		7032251818CFA29200AB6C0E /* Unicorn.png in Resources */ = {isa = PBXBuildFile; fileRef = 7032251718CFA29200AB6C0E /* Unicorn.png */; };
 		7032252018CFD56500AB6C0E /* BOXAccountService.m in Sources */ = {isa = PBXBuildFile; fileRef = 7032251F18CFD56500AB6C0E /* BOXAccountService.m */; };
-		7032252318CFD58B00AB6C0E /* KeychainItemWrapper.m in Sources */ = {isa = PBXBuildFile; fileRef = 7032252218CFD58B00AB6C0E /* KeychainItemWrapper.m */; };
+		7032252318CFD58B00AB6C0E /* KeychainItemWrapper.m in Sources */ = {isa = PBXBuildFile; fileRef = 7032252218CFD58B00AB6C0E /* KeychainItemWrapper.m */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
 		93971DA56A734A778B86D2D6 /* libPods.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A259F584D26B4367B50D0F65 /* libPods.a */; };
 /* End PBXBuildFile section */
 

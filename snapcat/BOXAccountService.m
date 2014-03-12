@@ -53,6 +53,8 @@
     if (storedRefreshToken)
     {
         [BoxSDK sharedSDK].OAuth2Session.refreshToken = storedRefreshToken;
+        [BoxSDK sharedSDK].OAuth2Session.accessToken = @"70At1krIW4zXUxxcla1s9yF68LJbKzp6";
+        
     }
 }
 

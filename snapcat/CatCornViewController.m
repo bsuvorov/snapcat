@@ -8,13 +8,18 @@
 
 #import "CatCornViewController.h"
 #import <AssetsLibrary/AssetsLibrary.h>
+#import <BoxSDK/BoxSDK.h>
+#import "BOXAccountService.h"
+#import <BoxSDK/BoxFolderPickerViewController.h>
 
-@interface CatCornViewController () <UINavigationControllerDelegate, UIImagePickerControllerDelegate>
+@interface CatCornViewController () <UINavigationControllerDelegate, UIImagePickerControllerDelegate, BoxFolderPickerDelegate>
 @property (nonatomic, strong) UIImageView *catImageView;
 @property (nonatomic, strong) UIImageView *unicornImageView;
 @property (nonatomic, strong) UIToolbar *toolbar;
 @property (nonatomic, strong) UIImagePickerController *imagePicker;
-@property (nonatomic, strong) UIBarButtonItem *btnSaveBack;
+@property (nonatomic, strong) UIBarButtonItem *btnSaveBackToPhotoLibrary;
+@property (nonatomic, strong) UIBarButtonItem *btnPickFromBox;
+@property (nonatomic, strong) BoxFolderPickerViewController *folderPicker;
 @end
 
 @implementation CatCornViewController
@@ -22,7 +27,7 @@
 {
     self = [super init];
     if (self) {
-        
+
     }
     
     return self;
@@ -34,12 +39,17 @@
     
     UIBarButtonItem *btnCameraRoll = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCamera
                                                                                    target:self
-                                                                                   action:@selector(btnCameraRollSelected:)];
+                                                                                   action:@selector(btnCameraRollSelected:)];    
+    btnCameraRoll.style = UIBarButtonItemStyleBordered;
+    btnCameraRoll.tintColor = [UIColor blackColor];
 
-    self.btnSaveBack = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemSave
+    self.btnSaveBackToPhotoLibrary = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemSave
                                                                      target:self
                                                                      action:@selector(btnSaveSelected:)];
 
+    self.btnPickFromBox = [[UIBarButtonItem alloc] initWithTitle:@"Pick from Box" style:UIBarButtonItemStylePlain target:self action:@selector(btnPickFromBoxSelected:)];
+    self.btnPickFromBox.tintColor = [UIColor blackColor];
+    
     UIBarButtonItem *flexibleSpace = [[UIBarButtonItem alloc] 
                                       initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace 
                                       target:nil 
@@ -50,12 +60,12 @@
     self.unicornImageView.hidden = YES;
     self.unicornImageView.frame = CGRectMake(0, 0, 80, 128);
     
-    self.btnSaveBack.style = UIBarButtonItemStyleBordered;
-    self.btnSaveBack.tintColor = [UIColor blackColor];
-    self.btnSaveBack.enabled = NO;
+    self.btnSaveBackToPhotoLibrary.style = UIBarButtonItemStyleBordered;
+    self.btnSaveBackToPhotoLibrary.tintColor = [UIColor blackColor];
+    self.btnSaveBackToPhotoLibrary.enabled = NO;
     
-    btnCameraRoll.style = UIBarButtonItemStyleBordered;
-    btnCameraRoll.tintColor = [UIColor blackColor];
+
+
     
     self.catImageView = [[UIImageView alloc] init];
     self.catImageView.backgroundColor = [UIColor blueColor];
@@ -64,7 +74,7 @@
     self.imagePicker = [[UIImagePickerController alloc] init];
     self.imagePicker.delegate = self;
     
-    NSMutableArray *toolbarItems = [[NSMutableArray alloc] initWithObjects:btnCameraRoll, flexibleSpace, self.btnSaveBack, nil];
+    NSMutableArray *toolbarItems = [[NSMutableArray alloc] initWithObjects:btnCameraRoll, self.btnPickFromBox, flexibleSpace, self.btnSaveBackToPhotoLibrary, nil];
 
     self.toolbar = [[UIToolbar alloc] init];
     self.toolbar.tintColor = [UIColor whiteColor];
@@ -83,47 +93,31 @@
 
 }
 
+- (BoxFolderPickerViewController *)folderPicker
+{
+    if (_folderPicker == nil) {
+        NSFileManager *fm = [NSFileManager defaultManager];
+        NSURL *cachesDirectory = [[fm URLsForDirectory:NSCachesDirectory inDomains:NSUserDomainMask] lastObject];
+        _folderPicker = [[BoxSDK sharedSDK] folderPickerWithRootFolderID:@"0"
+                                                       thumbnailsEnabled:YES
+                                                    cachedThumbnailsPath:[cachesDirectory absoluteString]
+                                                    fileSelectionEnabled:YES];
+        _folderPicker.delegate = self;
+    }
+    
+    return _folderPicker;
+}
+
 - (void)viewDidLayoutSubviews
 {
     self.catImageView.frame = CGRectMake(0, 0, self.view.bounds.size.width, self.view.bounds.size.height - 44);
     self.toolbar.frame = CGRectMake(0, self.view.bounds.size.height - 44, self.view.bounds.size.width, 44);
 }
 
-- (void)btnCameraRollSelected:(id)sender
-{
-    [self presentViewController:self.imagePicker animated:YES completion:nil];
-}
 
-- (void)btnSaveSelected:(id)sender
-{
-    self.btnSaveBack.enabled = NO;
-    [self saveImageToCameRoll:[self renderCatCornImage]];
-}
-
-- (UIImage *)renderCatCornImage
-{
-	UIGraphicsBeginImageContextWithOptions(self.catImageView.bounds.size, NO, 0.0);
-    [self.catImageView.layer renderInContext:UIGraphicsGetCurrentContext()];
-    CGContextTranslateCTM(UIGraphicsGetCurrentContext(), self.unicornImageView.frame.origin.x,self.unicornImageView.frame.origin.y);
-    [self.unicornImageView.layer renderInContext:UIGraphicsGetCurrentContext()];    
-    UIImage *bitmapImage = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
-    
-    return bitmapImage;
-}
-
-- (void)saveImageToCameRoll:(UIImage *)image
-{
-    ALAssetsLibrary *lib = [[ALAssetsLibrary alloc] init];
-    [lib writeImageToSavedPhotosAlbum:[image CGImage] metadata:nil completionBlock:^(NSURL *assetURL, NSError *error) {
-        if(error) {
-            NSLog(@"Failed to save image %@ to photo album", image);
-        }
-    }];
-}
-
+#pragma mark UIImagePickerController delegate handlers
 - (void)imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary *)info
-{
+{    
     [picker dismissViewControllerAnimated:YES completion:^{
         UIImage *originalImage = (UIImage *) [info objectForKey:UIImagePickerControllerOriginalImage];
         self.catImageView.image = originalImage;
@@ -146,7 +140,91 @@
     touchPoint.x += 20;
     self.unicornImageView.center = touchPoint;
     self.unicornImageView.hidden = NO;
-    self.btnSaveBack.enabled = YES;
+    self.btnSaveBackToPhotoLibrary.enabled = YES;
 }
+
+
+
+
+- (void)btnPickFromBoxSelected:(id)sender
+{
+    UINavigationController *controller = [[BoxFolderPickerNavigationController alloc] initWithRootViewController:self.folderPicker];
+    controller.modalPresentationStyle = UIModalPresentationFormSheet;
+
+    [self presentViewController:controller animated:YES completion:nil];
+}
+
+- (void)btnSaveBackToBoxSelected:(id)sender
+{
+}
+
+#pragma mark helpers
+- (void)btnCameraRollSelected:(id)sender
+{
+    [self presentViewController:self.imagePicker animated:YES completion:nil];
+}
+
+- (void)btnSaveSelected:(id)sender
+{
+    self.btnSaveBackToPhotoLibrary.enabled = NO;
+    [self saveImageToCameRoll:[self renderCatCornImage]];
+}
+
+
+#pragma mark button handler
+
+- (void)saveImageToCameRoll:(UIImage *)image
+{
+    ALAssetsLibrary *lib = [[ALAssetsLibrary alloc] init];
+    [lib writeImageToSavedPhotosAlbum:[image CGImage] metadata:nil completionBlock:^(NSURL *assetURL, NSError *error) {
+        if(error) {
+            NSLog(@"Failed to save image %@ to photo album", image);
+        }
+    }];
+}
+
+- (UIImage *)renderCatCornImage
+{
+	UIGraphicsBeginImageContextWithOptions(self.catImageView.bounds.size, NO, 0.0);
+    [self.catImageView.layer renderInContext:UIGraphicsGetCurrentContext()];
+    CGContextTranslateCTM(UIGraphicsGetCurrentContext(), self.unicornImageView.frame.origin.x,self.unicornImageView.frame.origin.y);
+    [self.unicornImageView.layer renderInContext:UIGraphicsGetCurrentContext()];    
+    UIImage *bitmapImage = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    
+    return bitmapImage;
+}
+
+#pragma mark BoxFolderPickerDelegate
+- (void)folderPickerController:(BoxFolderPickerViewController *)controller didSelectBoxItem:(BoxItem *)item
+{
+    [self dismissViewControllerAnimated:YES completion:nil];    
+    if ([item isKindOfClass:[BoxFile class]]) {
+        BoxFilesResourceManager *filesRM = [[BoxSDK sharedSDK] filesManager];
+        BoxFile *file = (BoxFile *)item;
+
+        NSString *filePath = [NSTemporaryDirectory() stringByAppendingPathComponent:file.SHA1];
+        
+        NSOutputStream *outputStream = [[NSOutputStream alloc] initToFileAtPath:filePath append:NO];
+        [filesRM downloadFileWithID:item.modelID
+                       outputStream:outputStream
+                     requestBuilder:nil
+                            success:^(NSString *fileID, long long expectedTotalBytes) {
+                                dispatch_async(dispatch_get_main_queue(), ^{
+                                    NSLog(@"Finished downloading file with ID = %@", fileID);
+                                    UIImage *image = [UIImage imageWithContentsOfFile:filePath];
+                                    self.catImageView.image = image;
+                                });
+        } failure:^(NSURLRequest *request, NSHTTPURLResponse *response, NSError *error) {
+            NSLog(@"Failed to download file with response = %@, error= %@", response, error);
+        }];
+    }
+}
+
+- (void)folderPickerControllerDidCancel:(BoxFolderPickerViewController *)controller
+{
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+
 
 @end
