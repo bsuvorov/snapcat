@@ -18,6 +18,7 @@
 @property (nonatomic, strong) UIToolbar *toolbar;
 @property (nonatomic, strong) UIImagePickerController *imagePicker;
 @property (nonatomic, strong) UIBarButtonItem *btnSaveBackToPhotoLibrary;
+@property (nonatomic, strong) UIBarButtonItem *btnSaveBackToBox;
 @property (nonatomic, strong) UIBarButtonItem *btnPickFromBox;
 @property (nonatomic, strong) BoxFolderPickerViewController *photoPicker;
 @property (nonatomic, strong) BoxFolderPickerViewController *destinationChooser;
@@ -49,7 +50,22 @@
                                                                      target:self
                                                                      action:@selector(btnSaveSelected:)];
 
-    self.btnPickFromBox = [[UIBarButtonItem alloc] initWithTitle:@"Pick from Box" style:UIBarButtonItemStylePlain target:self action:@selector(btnPickFromBoxSelected:)];
+    self.btnSaveBackToPhotoLibrary.style = UIBarButtonItemStyleBordered;
+    self.btnSaveBackToPhotoLibrary.tintColor = [UIColor blackColor];
+    self.btnSaveBackToPhotoLibrary.enabled = NO;
+
+    self.btnSaveBackToBox = [[UIBarButtonItem alloc] initWithTitle:@"Save back to Box"
+                                                             style:UIBarButtonItemStyleBordered
+                                                            target:self
+                                                            action:@selector(btnSaveBackToBoxSelected:)];
+    self.btnSaveBackToBox.enabled = NO;
+    self.btnSaveBackToBox.tintColor = [UIColor blackColor];
+    
+    
+    self.btnPickFromBox = [[UIBarButtonItem alloc] initWithTitle:@"Pick from Box"
+                                                           style:UIBarButtonItemStylePlain
+                                                          target:self
+                                                          action:@selector(btnPickFromBoxSelected:)];
     self.btnPickFromBox.tintColor = [UIColor blackColor];
     
     UIBarButtonItem *flexibleSpace = [[UIBarButtonItem alloc] 
@@ -62,12 +78,6 @@
     self.unicornImageView.hidden = YES;
     self.unicornImageView.frame = CGRectMake(0, 0, 80, 128);
     
-    self.btnSaveBackToPhotoLibrary.style = UIBarButtonItemStyleBordered;
-    self.btnSaveBackToPhotoLibrary.tintColor = [UIColor blackColor];
-    self.btnSaveBackToPhotoLibrary.enabled = NO;
-    
-
-
     
     self.catImageView = [[UIImageView alloc] init];
     self.catImageView.backgroundColor = [UIColor blueColor];
@@ -76,7 +86,7 @@
     self.imagePicker = [[UIImagePickerController alloc] init];
     self.imagePicker.delegate = self;
     
-    NSMutableArray *toolbarItems = [[NSMutableArray alloc] initWithObjects:btnCameraRoll, self.btnPickFromBox, flexibleSpace, self.btnSaveBackToPhotoLibrary, nil];
+    NSMutableArray *toolbarItems = [[NSMutableArray alloc] initWithObjects:btnCameraRoll, self.btnPickFromBox, flexibleSpace, self.btnSaveBackToBox, self.btnSaveBackToPhotoLibrary, nil];
 
     self.toolbar = [[UIToolbar alloc] init];
     self.toolbar.tintColor = [UIColor whiteColor];
@@ -158,6 +168,7 @@
     self.unicornImageView.center = touchPoint;
     self.unicornImageView.hidden = NO;
     self.btnSaveBackToPhotoLibrary.enabled = YES;
+    self.btnSaveBackToBox.enabled = YES;
 }
 
 
@@ -170,6 +181,7 @@
 
 - (void)btnSaveBackToBoxSelected:(id)sender
 {
+    self.btnSaveBackToBox.enabled = NO;
     UINavigationController *controller = [[BoxFolderPickerNavigationController alloc] initWithRootViewController:self.destinationChooser];
     controller.modalPresentationStyle = UIModalPresentationFormSheet;
     [self presentViewController:controller animated:YES completion:nil];
@@ -212,17 +224,18 @@
     return bitmapImage;
 }
 
+
 #pragma mark BoxFolderPickerDelegate
 - (void)folderPickerController:(BoxFolderPickerViewController *)controller didSelectBoxItem:(BoxItem *)item
 {
+    [self dismissViewControllerAnimated:YES completion:nil];    
     if (controller == self.photoPicker) {
-        [self dismissViewControllerAnimated:YES completion:nil];    
+
         if ([item isKindOfClass:[BoxFile class]]) {
             BoxFilesResourceManager *filesRM = [[BoxSDK sharedSDK] filesManager];
             BoxFile *file = (BoxFile *)item;
-            
             NSString *filePath = [NSTemporaryDirectory() stringByAppendingPathComponent:file.SHA1];
-            
+
             NSOutputStream *outputStream = [[NSOutputStream alloc] initToFileAtPath:filePath append:NO];
             [filesRM downloadFileWithID:item.modelID
                            outputStream:outputStream
@@ -234,11 +247,35 @@
                                         self.catImageView.image = image;
                                     });
                                 } failure:^(NSURLRequest *request, NSHTTPURLResponse *response, NSError *error) {
-                                    NSLog(@"Failed to download file with response = %@, error= %@", response, error);
+                                    dispatch_async(dispatch_get_main_queue(), ^{
+                                        NSLog(@"Failed to download file with response = %@, error= %@", response, error);                                        
+                                    });
                                 }];
         }
     } else if (controller == self.destinationChooser) {
-        
+        if ([item isKindOfClass:[BoxFolder class]]) {
+            BoxFilesResourceManager *filesRM = [[BoxSDK sharedSDK] filesManager];
+            BoxFolder *folder = (BoxFolder *)item;
+            UIImage *image = [self renderCatCornImage];
+            NSData *imageData = UIImageJPEGRepresentation(image, 1);
+            BoxItemsRequestBuilder *requestBuilder = [[BoxItemsRequestBuilder alloc] init];
+            requestBuilder.parentID = folder.modelID;
+            requestBuilder.name = @"Catcorn image";
+            [filesRM uploadFileWithData:imageData
+                         requestBuilder:nil
+                                success:^(BoxFile *file) {
+                                    dispatch_async(dispatch_get_main_queue(), ^{
+                                        self.btnSaveBackToBox.enabled = YES;  
+                                        NSLog(@"Succeeded uploading cat corn to Box. File ID %@", file.modelID);
+                                    });   
+                                }
+                                failure:^(NSURLRequest *request, NSHTTPURLResponse *response, NSError *error, NSDictionary *JSONDictionary) {
+                                    dispatch_async(dispatch_get_main_queue(), ^{
+                                        self.btnSaveBackToBox.enabled = YES; 
+                                        NSLog(@"Failed to upload file with response = %@, error= %@", response, error);                                        
+                                    });
+                                }];
+        }
     } else {
         NSLog(@"Unexpected BoxFolderPickerViewController controller %@", controller);
     }
